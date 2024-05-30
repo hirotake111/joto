@@ -1,6 +1,6 @@
 use joto::decode_jwt;
 
-fn main() {
+fn main() -> Result<(), String> {
     let mut argv = std::env::args();
     argv.next().unwrap();
     let input = match argv.next() {
@@ -12,7 +12,8 @@ fn main() {
             line
         }
     };
-    print_jwt(decode_jwt(input));
+    print_jwt(decode_jwt(input)?);
+    Ok(())
 }
 
 fn print_jwt(data: Vec<String>) {

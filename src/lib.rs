@@ -7,12 +7,11 @@
 //     Bool(bool),
 // }
 //
-pub fn decode_jwt(text: String) -> Vec<String> {
-    let jwt: Vec<String> = text.split(".").take(2).map(decode_part).collect();
-    jwt
+pub fn decode_jwt(text: String) -> Result<Vec<String>, String> {
+    text.split(".").take(2).map(decode_part).collect()
 }
 
-fn decode_part(text: &str) -> String {
+fn decode_part(text: &str) -> Result<String, String> {
     let mut result: Vec<u8> = Vec::new();
     for chunks in text.as_bytes().chunks(8) {
         // (Padding) If the length of chunks is less than 8, then append 'a' as it will
@@ -23,7 +22,7 @@ fn decode_part(text: &str) -> String {
         }
         let mut n: u64 = 0;
         for chunk in chunks {
-            n = (n << 6) + lookup(chunk as char);
+            n = (n << 6) | lookup(chunk as char)?;
         }
         result.push((n >> 40) as u8);
         result.push(((n >> 32) & 255) as u8);
@@ -36,11 +35,11 @@ fn decode_part(text: &str) -> String {
     while result.len() > 0 && result[result.len() - 1] == 0 {
         result.pop();
     }
-    result.into_iter().map(|b| b as char).collect()
+    Ok(result.into_iter().map(|b| b as char).collect())
 }
 
-fn lookup(ch: char) -> u64 {
-    match ch {
+fn lookup(ch: char) -> Result<u64, String> {
+    let v = match ch {
         'A' => 0,
         'B' => 1,
         'C' => 2,
@@ -105,8 +104,12 @@ fn lookup(ch: char) -> u64 {
         '9' => 61,
         '+' => 62,
         '/' => 63,
-        _ => 64,
-    }
+        '=' => 64,
+        ch => {
+            return Err(format!("invalid base64 character: '{ch}'"));
+        }
+    };
+    Ok(v)
 }
 
 #[cfg(test)]
@@ -116,11 +119,14 @@ mod tests {
     #[test]
     fn test_decode() {
         let s = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9".to_string();
-        assert_eq!(decode_part(&s), "{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
+        assert_eq!(
+            decode_part(&s),
+            Ok("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".to_string())
+        );
         let s = "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ";
         assert_eq!(
             decode_part(&s),
-            "{\"sub\":\"1234567890\",\"name\":\"John Doe\",\"iat\":1516239022}"
+            Ok("{\"sub\":\"1234567890\",\"name\":\"John Doe\",\"iat\":1516239022}".to_string())
         );
     }
 
@@ -129,10 +135,19 @@ mod tests {
         let raw_data = std::fs::read_to_string("./test/sample.txt").unwrap();
         assert_eq!(
             decode_jwt(raw_data),
-            vec![
-                "{\"alg\":\"HS256\",\"typ\":\"JWT\"}",
-                "{\"sub\":\"1234567890\",\"name\":\"John Doe\",\"iat\":1516239022}",
-            ]
+            Ok(vec![
+                "{\"alg\":\"HS256\",\"typ\":\"JWT\"}".to_string(),
+                "{\"sub\":\"1234567890\",\"name\":\"John Doe\",\"iat\":1516239022}".to_string(),
+            ])
         )
+    }
+
+    #[test]
+    fn test_invalid_base64() {
+        let s = "asdf.asdf".to_string();
+        assert_eq!(
+            decode_part(&s),
+            Err("invalid base64 character: '.'".to_string())
+        );
     }
 }
