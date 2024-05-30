@@ -1,4 +1,4 @@
-use jot::decode_jwt;
+use joto::decode_jwt;
 
 fn main() {
     let mut argv = std::env::args();

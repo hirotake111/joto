@@ -1,6 +1,6 @@
-# jot
+# joto
 
-jot is a simple JWT decoder.
+joto is a simple JWT decoder.
 
 ### Installation
 
@@ -13,11 +13,11 @@ cargo build --release
 You can pass JWT input as an argument:
 
 ```bash
-jot "eyJ..."
+joto "eyJ..."
 ```
 
 Or, you can pass it through pipe:
 
 ```bash
-cat data.txt | jot
+cat data.txt | joto
 ```
